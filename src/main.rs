@@ -1,4 +1,7 @@
 #[macro_use] extern crate rocket;
+
+mod database;
+
 use rocket::serde::json::Json;
 
 

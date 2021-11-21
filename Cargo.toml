@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 
+sqlite = "0.26.0"
 rocket = { version = "0.5.0-rc.1", features = ["secrets", "tls", "json"] }
 tantivy = "0.16.1"
