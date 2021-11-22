@@ -8,22 +8,22 @@ pub struct Data {
 }
 
 pub struct Source {
-    table: String,
-    text_column: String,
-    id_column: String
+    pub table: String,
+    pub text_column: String,
+    pub id_column: String
 }
 
 pub struct DataBase {
-    sources: Vec<Source>,
-    conn: sqlite::Connection, //need to change this in the future
+    pub sources: Vec<Source>,
+    pub conn: sqlite::Connection, //need to change this in the future
 }
 
 impl DataBase {
-    pub fn connect(self: &mut Self, uri: &str) {
+    pub fn connect(uri: &str) -> Self {
        let conn = sqlite::open(uri);
 
        if let Ok(conn) = conn {
-            self.conn = conn;
+            return Self {conn: conn, sources: vec![]};
        } else {
             panic!("Could not open a connection with SQLITE3 database");
        }
