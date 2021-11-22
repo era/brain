@@ -2,24 +2,34 @@
 
 mod database;
 
-use rocket::http::RawStr;
+use std::env;
 use rocket::serde::json::Json;
-use rocket::form::Form;
 
 // This whole function needs to be refactored
 fn db() -> database::DataBase {
-    let mut db = database::DataBase::connect("test"); //setup on a toml file
-   
-    db.add_source(database::Source {table: "twitter_tweets".to_string(), text_column: "text".to_string(), id_column: "id".to_string()}); //TODO IMPROVE THIS
+    if let Ok(uri) = env::var("SQLITE") {
 
-    db.add_source(database::Source {table: "twitter_likes".to_string(), text_column: "text".to_string(), id_column: "id".to_string()}); //TODO IMPROVE THIS
+        let mut db = database::DataBase::connect(&uri); //setup on a toml file
+   
+        db.add_source(database::Source {table: "twitter_tweets".to_string(), text_column: "text".to_string(), id_column: "id".to_string()}); //TODO IMPROVE THIS
+
+        db.add_source(database::Source {table: "twitter_likes".to_string(), text_column: "text".to_string(), id_column: "id".to_string()}); //TODO IMPROVE THIS
     
-    return db;
+        return db;
+
+
+    } else {
+
+        panic!("No SQLITE env variable defined");
+    }
+
 }
 
 #[get("/?<search>")]
-fn index(search: &str) -> Json<String> {
-    Json("hello world".to_string())
+fn index(search: &str) -> Json<Vec<database::Data>> {
+
+    let results = db().search(search);
+    Json(results)
 }
 
 #[launch]

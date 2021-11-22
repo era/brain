@@ -1,6 +1,9 @@
 use sqlite;
 use sqlite::State;
 
+use rocket::serde::{Serialize, json::Json};
+
+#[derive(Serialize)]
 pub struct Data {
     text: String,
     table: String,
