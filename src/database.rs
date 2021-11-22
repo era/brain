@@ -51,7 +51,7 @@ impl DataBase {
                 results.push(result);
             }
         }
-        vec![]
+        return results;
     }
 }
 
