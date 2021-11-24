@@ -4,7 +4,13 @@ mod database;
 mod documents;
 
 use std::env;
-use rocket::serde::json::Json;
+use rocket::serde::{Serialize, json::Json};
+
+#[derive(Serialize)]
+struct Result {
+    database: Vec<database::Data>,
+    garden: Vec<documents::Data>,
+}
 
 // This whole function needs to be refactored
 fn db() -> database::DataBase {
@@ -26,8 +32,10 @@ fn db() -> database::DataBase {
 // the result of this function should be a union of
 // database data and documents data
 #[get("/?<search>")]
-fn index(search: &str) -> Json<Vec<database::Data>> {
-    let results = db().search(search);
+fn index(search: &str) -> Json<Result> {
+    let db_results = db().search(search);
+    let garden_results = documents::search(search);
+    let results = Result {database: db_results, garden: garden_results};
     Json(results)
 }
 
