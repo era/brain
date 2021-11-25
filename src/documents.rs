@@ -108,6 +108,19 @@ pub fn index(folder: &str) -> tantivy::Result<()> {
     Ok(())
 }
 
+pub fn add_file(file: &str, folder: &str) -> Result<(), io::Error> {
+   let file_content = fs::read(file)?;
+
+   let path = file.replace(folder, "").replace(".md", "");
+    // find doc
+    // if exists delete
+    //
+    // insert new one
+    // commit
+    //
+    Ok(())
+}
+
 fn add_folder(folder: &str, mut writer: IndexWriter, body: Field, file_path: Field) -> Result<IndexWriter, io::Error> {
     
     let markdown = Regex::new(r".{1,}\.md$").unwrap(); // ok to unwrap since the regex is tested and works

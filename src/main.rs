@@ -2,9 +2,12 @@
 
 mod database;
 mod documents;
+mod watcher;
 
 use std::env;
 use rocket::serde::{Serialize, json::Json};
+use std::thread;
+
 
 #[derive(Serialize)]
 struct Result {
@@ -41,9 +44,13 @@ fn index(search: &str) -> Json<Result> {
 
 #[launch]
 fn rocket() -> _ {
+    //env_logger::init();
     if let Ok(folder) = env::var("DIGITAL_GARDEN") {
         // need to check result of this
         documents::index(&folder);
+        thread::spawn(move || {
+            watcher::watch(&folder);
+        });
 
     } 
     // setup log
