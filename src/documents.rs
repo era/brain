@@ -20,7 +20,7 @@ static INDEX: OnceCell<Index> = OnceCell::new();
 #[derive(Serialize)]
 pub struct Data {
     pub text: String,
-    //TODO: Add path/url to my digital garden
+    pub path: String,
 }
 
 pub fn search(text: &str) -> Vec<Data> {
@@ -38,7 +38,7 @@ pub fn search(text: &str) -> Vec<Data> {
 
     let schema = schema();
     let body = schema.get_field("body").unwrap();
-
+    let path = schema.get_field("path").unwrap();
 
     let query_parser = QueryParser::for_index(&index, vec![body]);
 
@@ -48,9 +48,14 @@ pub fn search(text: &str) -> Vec<Data> {
 
     for (_score, doc_address) in top_docs {
         let retrieved_doc = searcher.doc(doc_address).unwrap();
-        if let Value::Str(result) = retrieved_doc.get_first(body).unwrap() {
-            results.push(Data {text: result.to_string()});
-        }
+
+        let (doc_body, doc_path) = match (retrieved_doc.get_first(body).unwrap(), retrieved_doc.get_first(path).unwrap()) {
+            (Value::Str(doc_body), Value::Str(doc_path)) => (doc_body, doc_path),
+            (_, _) => continue,
+
+        };
+        
+        results.push(Data {text: doc_body.to_string(), path: doc_path.to_string()});
 
     }
 
@@ -63,6 +68,7 @@ fn schema() -> Schema {
     // and in the result show the url for the website
     schema_builder.add_text_field("body", TEXT | STORED);
 
+    schema_builder.add_text_field("path", TEXT | STORED);
     let schema = schema_builder.build();
     return schema;
 }
@@ -79,8 +85,12 @@ pub fn index(folder: &str) -> tantivy::Result<()> {
     let mut index_writer = index.writer(50_000_000)?;
 
     let body = schema.get_field("body").unwrap();
+
+
+    let path = schema.get_field("path").unwrap();
+
     // need to check for result
-    let index_writer = match add_folder(folder, index_writer, body) {
+    let index_writer = match add_folder(folder, index_writer, body, path) {
         Ok(index_writer) => index_writer,
         _ => panic!("Could not index folder"), //we should not panic here, probably return an error
     };
@@ -98,7 +108,7 @@ pub fn index(folder: &str) -> tantivy::Result<()> {
     Ok(())
 }
 
-fn add_folder(folder: &str, mut writer: IndexWriter, body: Field) -> Result<IndexWriter, io::Error> {
+fn add_folder(folder: &str, mut writer: IndexWriter, body: Field, file_path: Field) -> Result<IndexWriter, io::Error> {
     
     let markdown = Regex::new(r".{1,}\.md$").unwrap(); // ok to unwrap since the regex is tested and works
     for entry in fs::read_dir(folder)? {
@@ -106,9 +116,14 @@ fn add_folder(folder: &str, mut writer: IndexWriter, body: Field) -> Result<Inde
         let file = dir.path();
         let file = file.to_string_lossy();
         if markdown.is_match(file.as_ref()) {
+            let path = file.as_ref().replace(folder, "").replace(".md", "");
+            
             let file_content = fs::read(file.as_ref())?;
             let file_content = String::from_utf8_lossy(&file_content);
-            writer.add_document(doc!(body => String::from(file_content)));
+            writer.add_document(doc!(
+                    body => String::from(file_content),
+                    file_path => path,
+                    ));
            
         }
     }
@@ -117,5 +132,4 @@ fn add_folder(folder: &str, mut writer: IndexWriter, body: Field) -> Result<Inde
     // given back the writer we borrowed
     Ok(writer)   
 }
-// neeed to refresh index when a file is modified or a file is added
-// need a search function => https://github.com/quickwit-inc/tantivy/blob/main/examples/basic_search.rs
+//TODO neeed to refresh index when a file is modified or a file is added
