@@ -116,27 +116,27 @@ pub fn add_file(file: &str, folder: &str) -> Result<(), io::Error> {
     };
 
 
-   let file_content = fs::read(file)?;
-   let path = file.replace(folder, "").replace(".md", "");
+    let file_content = fs::read(file)?;
+    let path = file.replace(folder, "").replace(".md", "");
 
-   let schema = schema();
+    let schema = schema();
 
-   let path_field =  schema.get_field("path").unwrap();
-   let body = schema.get_field("body").unwrap();
-   let term = Term::from_field_text(path_field, &path);
+    let path_field =  schema.get_field("path").unwrap();
+    let body = schema.get_field("body").unwrap();
+    let term = Term::from_field_text(path_field, &path);
 
-   let doc = extract_doc_given_path(&term);
+    let doc = extract_doc_given_path(&term);
 
-   if let Ok(Some(doc)) = doc {
+    if let Ok(Some(doc)) = doc {
         writer.delete_term(term.clone());
-   }
+    }
 
-   writer.add_document(doc!(
+    writer.add_document(doc!(
         path_field => path,
         body => String::from_utf8_lossy(&file_content).as_ref()
     ));
     
-   writer.commit();
+    writer.commit();
     
     println!("New file added");
    
