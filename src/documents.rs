@@ -2,6 +2,7 @@ use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
 use tantivy::{doc, Index, ReloadPolicy, IndexWriter, IndexReader};
+use tantivy::query::TermQuery;
 use tantivy::schema::Field;
 use tempfile::TempDir;
 use regex::Regex;
@@ -109,17 +110,61 @@ pub fn index(folder: &str) -> tantivy::Result<()> {
 }
 
 pub fn add_file(file: &str, folder: &str) -> Result<(), io::Error> {
-   let file_content = fs::read(file)?;
+    let mut writer = match INDEX.get() {
+        Some(index) => index.writer(50_000_000).unwrap(),
+        _ => return Ok(()) // should return error
+    };
 
+
+   let file_content = fs::read(file)?;
    let path = file.replace(folder, "").replace(".md", "");
-    // find doc
-    // if exists delete
-    //
-    // insert new one
-    // commit
-    //
+
+   let schema = schema();
+
+   let path_field =  schema.get_field("path").unwrap();
+   let body = schema.get_field("body").unwrap();
+   let term = Term::from_field_text(path_field, &path);
+
+   let doc = extract_doc_given_path(&term);
+
+   if let Ok(Some(doc)) = doc {
+        writer.delete_term(term.clone());
+   }
+
+   writer.add_document(doc!(
+        path_field => path,
+        body => String::from_utf8_lossy(&file_content).as_ref()
+    ));
+    
+   writer.commit();
+    
+    println!("New file added");
+   
     Ok(())
 }
+
+
+fn extract_doc_given_path(
+    path_term: &Term,
+) -> tantivy::Result<Option<Document>> {
+    let searcher = match READER.get() {
+        Some(reader) => reader.searcher(),
+        _ => return Ok(None) // should return error
+    };
+
+
+    let term_query = TermQuery::new(path_term.clone(), IndexRecordOption::Basic);
+    let top_docs = searcher.search(&term_query, &TopDocs::with_limit(1))?;
+
+    if let Some((_score, doc_address)) = top_docs.first() {
+        let doc = searcher.doc(*doc_address)?;
+        Ok(Some(doc))
+    } else {
+        // no doc matching this ID.
+        Ok(None)
+    }
+}
+
 
 fn add_folder(folder: &str, mut writer: IndexWriter, body: Field, file_path: Field) -> Result<IndexWriter, io::Error> {
     
@@ -136,7 +181,7 @@ fn add_folder(folder: &str, mut writer: IndexWriter, body: Field, file_path: Fie
             writer.add_document(doc!(
                     body => String::from(file_content),
                     file_path => path,
-                    ));
+            ));
            
         }
     }
@@ -145,4 +190,3 @@ fn add_folder(folder: &str, mut writer: IndexWriter, body: Field, file_path: Fie
     // given back the writer we borrowed
     Ok(writer)   
 }
-//TODO neeed to refresh index when a file is modified or a file is added
