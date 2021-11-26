@@ -1,13 +1,13 @@
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
 mod database;
 mod documents;
 mod watcher;
 
+use rocket::serde::{json::Json, Serialize};
 use std::env;
-use rocket::serde::{Serialize, json::Json};
 use std::thread;
-
 
 #[derive(Serialize)]
 struct Result {
@@ -18,15 +18,21 @@ struct Result {
 // This whole function needs to be refactored
 fn db() -> database::DataBase {
     if let Ok(uri) = env::var("SQLITE") {
-
         let mut db = database::DataBase::connect(&uri);
-   
-        db.add_source(database::Source {table: "twitter_tweets".to_string(), text_column: "text".to_string(), id_column: "id".to_string()}); //TODO IMPROVE THIS
 
-        db.add_source(database::Source {table: "twitter_likes".to_string(), text_column: "text".to_string(), id_column: "id".to_string()}); //TODO IMPROVE THIS
-    
+        db.add_source(database::Source {
+            table: "twitter_tweets".to_string(),
+            text_column: "text".to_string(),
+            id_column: "id".to_string(),
+        }); //TODO IMPROVE THIS
+
+        db.add_source(database::Source {
+            table: "twitter_likes".to_string(),
+            text_column: "text".to_string(),
+            id_column: "id".to_string(),
+        }); //TODO IMPROVE THIS
+
         return db;
-
     } else {
         panic!("No SQLITE env variable defined");
     }
@@ -38,7 +44,10 @@ fn db() -> database::DataBase {
 fn index(search: &str) -> Json<Result> {
     let db_results = db().search(search);
     let garden_results = documents::search(search);
-    let results = Result {database: db_results, garden: garden_results};
+    let results = Result {
+        database: db_results,
+        garden: garden_results,
+    };
     Json(results)
 }
 
@@ -51,8 +60,7 @@ fn rocket() -> _ {
         thread::spawn(move || {
             watcher::watch(&folder);
         });
-
-    } 
+    }
     // setup log
     // index digital garden
     rocket::build().mount("/", routes![index])
