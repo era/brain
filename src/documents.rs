@@ -1,4 +1,9 @@
 use regex::Regex;
+use rocket::serde::{json::Json, Serialize};
+use std::error::Error;
+use std::fs::{self, DirEntry};
+use std::io;
+use std::path::Path;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::query::TermQuery;
@@ -6,11 +11,6 @@ use tantivy::schema::Field;
 use tantivy::schema::*;
 use tantivy::{doc, Index, IndexReader, IndexWriter, ReloadPolicy};
 use tempfile::TempDir;
-
-use rocket::serde::{json::Json, Serialize};
-use std::fs::{self, DirEntry};
-use std::io;
-use std::path::Path;
 
 use once_cell::sync::OnceCell;
 
@@ -78,7 +78,7 @@ fn schema() -> Schema {
     return schema;
 }
 
-pub fn index(folder: &str) -> tantivy::Result<()> {
+pub fn index(folder: &str) -> Result<(), Box<dyn Error>> {
     // for now using a temp folder,
     // we probably should change this soon
     let index_path = TempDir::new()?;
@@ -112,7 +112,7 @@ pub fn index(folder: &str) -> tantivy::Result<()> {
     Ok(())
 }
 
-pub fn add_file(file: &str, folder: &str) -> Result<(), io::Error> {
+pub fn add_file(file: &str, folder: &str) -> Result<(), Box<dyn Error>> {
     let mut writer = match INDEX.get() {
         Some(index) => index.writer(50_000_000).unwrap(),
         _ => return Ok(()), // should return error
@@ -138,7 +138,7 @@ pub fn add_file(file: &str, folder: &str) -> Result<(), io::Error> {
         body => String::from_utf8_lossy(&file_content).as_ref()
     ));
 
-    writer.commit();
+    writer.commit()?;
 
     println!("New file added");
 
@@ -168,7 +168,7 @@ fn add_folder(
     mut writer: IndexWriter,
     body: Field,
     file_path: Field,
-) -> Result<IndexWriter, io::Error> {
+) -> Result<IndexWriter, Box<dyn Error>> {
     let markdown = Regex::new(r".{1,}\.md$").unwrap(); // ok to unwrap since the regex is tested and works
     for entry in fs::read_dir(folder)? {
         let dir = entry?;
@@ -185,8 +185,7 @@ fn add_folder(
             ));
         }
     }
-    // need to check if it worked
-    writer.commit();
+    writer.commit()?;
     // given back the writer we borrowed
     Ok(writer)
 }
